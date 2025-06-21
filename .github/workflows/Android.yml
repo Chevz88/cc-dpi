@@ -1,21 +1,29 @@
-name: Android CI
+name: Android CI/CD
 
 on:
   push:
     branches:
       - main
+      - develop
   pull_request:
     branches:
       - main
+      - develop
 
 jobs:
   build:
-
+    name: Build & Test
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for better caching
+
+      - name: Validate Gradle Wrapper
+        uses: gradle/wrapper-validation-action@v1
 
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -24,14 +32,215 @@ jobs:
           java-version: 17
           cache: 'gradle'
 
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.android/build-cache
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Setup Gradle Wrapper (if missing)
+        run: |
+          if [ ! -f "./gradlew" ]; then
+            echo "Gradle wrapper not found, creating..."
+            mkdir -p gradle/wrapper
+            
+            # Download gradle-wrapper.jar
+            curl -L -o gradle/wrapper/gradle-wrapper.jar \
+              https://github.com/gradle/gradle/raw/v8.0.0/gradle/wrapper/gradle-wrapper.jar
+            
+            # Create gradle-wrapper.properties
+            cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-all.zip
+          networkTimeout=10000
+          validateDistributionUrl=true
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+            
+            # Create gradlew script
+            curl -L -o gradlew https://github.com/gradle/gradle/raw/v8.0.0/gradlew
+            chmod +x gradlew
+          fi
+
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Build APK
-        run: ./gradlew :CC-DPI-App:app:assembleDebug
+      - name: Check Gradle version
+        run: ./gradlew --version
+
+      - name: Run tests
+        run: ./gradlew test --continue
+
+      - name: Run lint
+        run: ./gradlew lint
+
+      - name: Clean build
+        run: ./gradlew clean
+
+      - name: Build Debug APK
+        run: |
+          if [ -f "./gradlew" ]; then
+            # Try different build commands based on project structure
+            if ./gradlew tasks | grep -q ":CC-DPI-App:app:assembleDebug"; then
+              ./gradlew :CC-DPI-App:app:assembleDebug
+            elif ./gradlew tasks | grep -q ":app:assembleDebug"; then
+              ./gradlew :app:assembleDebug
+            else
+              ./gradlew assembleDebug
+            fi
+          else
+            echo "Gradle wrapper not found!"
+            exit 1
+          fi
+
+      - name: Build Release APK (if on main branch)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          if ./gradlew tasks | grep -q ":CC-DPI-App:app:assembleRelease"; then
+            ./gradlew :CC-DPI-App:app:assembleRelease
+          elif ./gradlew tasks | grep -q ":app:assembleRelease"; then
+            ./gradlew :app:assembleRelease
+          else
+            ./gradlew assembleRelease
+          fi
+
+      - name: Find APK files
+        id: find_apk
+        run: |
+          echo "Finding APK files..."
+          find . -name "*.apk" -type f
+          
+          # Find debug APK
+          DEBUG_APK=$(find . -name "*debug*.apk" -type f | head -1)
+          if [ -n "$DEBUG_APK" ]; then
+            echo "debug_apk=$DEBUG_APK" >> $GITHUB_OUTPUT
+            echo "Debug APK found: $DEBUG_APK"
+          else
+            echo "Debug APK not found!"
+          fi
+          
+          # Find release APK (if exists)
+          RELEASE_APK=$(find . -name "*release*.apk" -type f | head -1)
+          if [ -n "$RELEASE_APK" ]; then
+            echo "release_apk=$RELEASE_APK" >> $GITHUB_OUTPUT
+            echo "Release APK found: $RELEASE_APK"
+          fi
 
       - name: Upload Debug APK
+        if: steps.find_apk.outputs.debug_apk
         uses: actions/upload-artifact@v4
         with:
-          name: debug-apk
-          path: CC-DPI-App/app/build/outputs/apk/debug/app-debug.apk
+          name: debug-apk-${{ github.run_number }}
+          path: ${{ steps.find_apk.outputs.debug_apk }}
+          retention-days: 30
+
+      - name: Upload Release APK
+        if: steps.find_apk.outputs.release_apk && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk-${{ github.run_number }}
+          path: ${{ steps.find_apk.outputs.release_apk }}
+          retention-days: 90
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ github.run_number }}
+          path: |
+            **/build/reports/tests/**
+            **/build/test-results/**
+          retention-days: 30
+
+      - name: Upload Lint Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-results-${{ github.run_number }}
+          path: |
+            **/build/reports/lint-results*.html
+            **/build/reports/lint-results*.xml
+          retention-days: 30
+
+      - name: Comment PR with APK info
+        if: github.event_name == 'pull_request' && steps.find_apk.outputs.debug_apk
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            const apkPath = '${{ steps.find_apk.outputs.debug_apk }}';
+            const stats = fs.statSync(apkPath);
+            const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
+            
+            const comment = `
+            ## 📱 APK Build Results
+            
+            ✅ **Debug APK built successfully!**
+            
+            - **File size:** ${fileSizeInMB} MB
+            - **Build number:** ${{ github.run_number }}
+            - **Commit:** ${{ github.sha }}
+            
+            You can download the APK from the [Actions artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # Job untuk release otomatis (opsional)
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release]')
+    
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Download Release APK
+        uses: actions/download-artifact@v4
+        with:
+          name: release-apk-${{ github.run_number }}
+          path: ./release/
+
+      - name: Get version from build.gradle
+        id: get_version
+        run: |
+          VERSION=$(grep 'versionName' app/build.gradle | cut -d '"' -f 2 || echo "1.0.0")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}-${{ github.run_number }}
+          name: Release v${{ steps.get_version.outputs.version }}
+          body: |
+            ## 🚀 Release v${{ steps.get_version.outputs.version }}
+            
+            **Build:** ${{ github.run_number }}
+            **Commit:** ${{ github.sha }}
+            
+            ### Changes in this release:
+            ${{ github.event.head_commit.message }}
+            
+            ### 📱 Download APK
+            Download the APK file from the assets below.
+          files: ./release/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
