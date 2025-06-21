@@ -1,12 +1,11 @@
 @Composable
-fun AduanFormScreen(navController: NavController) {
+fun AduanFormScreen(navController: NavController, viewModel: AduanViewModel = viewModel()) {
     var judul by remember { mutableStateOf("") }
     var isi by remember { mutableStateOf("") }
-    var showSuccess by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Column(modifier = Modifier.padding(16.dp)) {
-        Text("Form Aduan", style = MaterialTheme.typography.headlineSmall)
-
+        Text("Formulir Aduan", style = MaterialTheme.typography.headlineSmall)
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
@@ -16,46 +15,29 @@ fun AduanFormScreen(navController: NavController) {
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
             value = isi,
             onValueChange = { isi = it },
             label = { Text("Isi Aduan") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(150.dp),
-            maxLines = 6
+            modifier = Modifier.fillMaxWidth().height(150.dp),
+            maxLines = 10
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Button(onClick = {
-            if (judul.isNotBlank() && isi.isNotBlank()) {
-                // Simpan ke DB/API (nanti)
-                showSuccess = true
-            }
-        }, modifier = Modifier.fillMaxWidth()) {
+        Button(
+            onClick = {
+                viewModel.kirimAduan(judul, isi)
+                Toast.makeText(context, "Aduan terkirim!", Toast.LENGTH_SHORT).show()
+                judul = ""
+                isi = ""
+                navController.popBackStack()
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Text("Kirim Aduan")
-        }
-
-        if (showSuccess) {
-            AlertDialog(
-                onDismissRequest = {
-                    showSuccess = false
-                    navController.popBackStack()
-                },
-                title = { Text("Berhasil") },
-                text = { Text("Aduan berhasil dikirim.") },
-                confirmButton = {
-                    TextButton(onClick = {
-                        showSuccess = false
-                        navController.popBackStack()
-                    }) {
-                        Text("OK")
-                    }
-                }
-            )
         }
     }
 }
