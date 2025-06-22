@@ -26,13 +26,11 @@ jobs:
           if [ ! -f "gradle/wrapper/gradle-wrapper.properties" ]; then
             echo "Generating missing gradle-wrapper.properties..."
             mkdir -p gradle/wrapper
-            cat > gradle/wrapper/gradle-wrapper.properties <<'EOF'
-distributionBase=GRADLE_USER_HOME
-distributionPath=wrapper/dists
-distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-bin.zip
-zipStoreBase=GRADLE_USER_HOME
-zipStorePath=wrapper/dists
-EOF
+            echo "distributionBase=GRADLE_USER_HOME" > gradle/wrapper/gradle-wrapper.properties
+            echo "distributionPath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
+            echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-bin.zip" >> gradle/wrapper/gradle-wrapper.properties
+            echo "zipStoreBase=GRADLE_USER_HOME" >> gradle/wrapper/gradle-wrapper.properties
+            echo "zipStorePath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
           fi
 
           # Periksa apakah gradle-wrapper.jar ada
@@ -76,4 +74,118 @@ EOF
           echo "Project structure:"
           find . -maxdepth 3 -type d -print | sort
 
-      # ... (langkah-langkah lainnya tetap sama)
+      - name: Clean project
+        run: ./gradlew clean
+
+      - name: Run tests
+        run: ./gradlew test --continue
+
+      - name: Run lint
+        run: ./gradlew lint
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Build Release APK
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        run: ./gradlew assembleRelease
+
+      - name: Find APK files
+        id: find_apk
+        run: |
+          debug_apk=$(find . -path "*/build/outputs/apk/debug/*.apk" -type f -print -quit)
+          release_apk=$(find . -path "*/build/outputs/apk/release/*.apk" -type f -print -quit)
+          
+          echo "debug_apk=${debug_apk}" >> $GITHUB_OUTPUT
+          echo "release_apk=${release_apk}" >> $GITHUB_OUTPUT
+          
+          echo "Debug APK: ${debug_apk:-Not found}"
+          echo "Release APK: ${release_apk:-Not found}"
+
+      - name: Upload Debug APK
+        if: steps.find_apk.outputs.debug_apk
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk-${{ github.run_number }}
+          path: ${{ steps.find_apk.outputs.debug_apk }}
+
+      - name: Upload Release APK
+        if: steps.find_apk.outputs.release_apk && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk-${{ github.run_number }}
+          path: ${{ steps.find_apk.outputs.release_apk }}
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ github.run_number }}
+          path: |
+            **/build/reports/tests/**
+            **/build/test-results/**
+
+      - name: Upload Lint Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-results-${{ github.run_number }}
+          path: |
+            **/build/reports/lint-results*.html
+            **/build/reports/lint-results*.xml
+
+      - name: Comment PR with Build Status
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          DEBUG_APK: ${{ steps.find_apk.outputs.debug_apk }}
+          BUILD_STATUS: ${{ job.status }}
+        with:
+          script: |
+            const { DEBUG_APK, BUILD_STATUS } = process.env;
+            const message = BUILD_STATUS === 'success' 
+              ? `✅ Build berhasil! [Download APK](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})` 
+              : '❌ Build gagal! Periksa log untuk detailnya';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Build Result #${{ github.run_number }}\n${message}`
+            });
+
+  release:
+    name: Create Release
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || contains(github.event.head_commit.message, '[release]')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Release APK
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-apk-*
+          path: ./release/
+
+      - name: Get version
+        id: get_version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version=${GITHUB_REF#refs/tags/v}
+          else
+            version=$(grep 'versionName' app/build.gradle | cut -d '"' -f 2 || echo "1.0.0")
+          fi
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: Release v${{ steps.get_version.outputs.version }}
+          body: "Production Release 🚀"
+          files: ./release/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
