@@ -28,35 +28,26 @@ jobs:
 
       - name: Repair Gradle Wrapper
         run: |
-          # Hapus file wrapper yang mungkin korup
           rm -f gradle/wrapper/gradle-wrapper.jar
           rm -f gradle/wrapper/gradle-wrapper.properties
           rm -f gradlew
           
-          # Download ulang semua komponen Gradle dari sumber resmi
           mkdir -p gradle/wrapper
           
-          # Download gradlew script
           curl -L -o gradlew https://raw.githubusercontent.com/gradle/gradle/master/gradlew
           chmod +x gradlew
           
-          # Download gradle-wrapper.jar dari sumber resmi Gradle (versi 8.0)
           curl -L -o gradle/wrapper/gradle-wrapper.jar \
             https://github.com/gradle/gradle/raw/v8.0.0/gradle/wrapper/gradle-wrapper.jar
           
-          # Berikan izin pada JAR
-          chmod +x gradle/wrapper/gradle-wrapper.jar
-          
-          # Buat gradle-wrapper.properties
-          cat <<'EOF' > gradle/wrapper/gradle-wrapper.properties
-distributionBase=GRADLE_USER_HOME
-distributionPath=wrapper/dists
-distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-bin.zip
-zipStoreBase=GRADLE_USER_HOME
-zipStorePath=wrapper/dists
-EOF
+          echo "distributionBase=GRADLE_USER_HOME" > gradle/wrapper/gradle-wrapper.properties
+          echo "distributionPath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
+          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-bin.zip" >> gradle/wrapper/gradle-wrapper.properties
+          echo "zipStoreBase=GRADLE_USER_HOME" >> gradle/wrapper/gradle-wrapper.properties
+          echo "zipStorePath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
 
-          # Verifikasi file
+          chmod +x gradle/wrapper/gradle-wrapper.jar
+
           echo "===== File Verification ====="
           file gradle/wrapper/gradle-wrapper.jar
           ls -lh gradle/wrapper/
@@ -67,4 +58,38 @@ EOF
       - name: Validate Gradle Wrapper
         uses: gradle/wrapper-validation-action@v1
 
-      # ... (langkah-langkah selanjutnya)
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.android/build-cache
+          key: ${{ runner.os }}-gradle-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Verify Gradle setup
+        run: |
+          echo "Gradle Wrapper Version:"
+          ./gradlew --version || echo "Gradle version check failed"
+          echo "Project structure:"
+          find . -maxdepth 3 -type d -print | sort
+
+      - name: Clean project
+        run: ./gradlew clean
+
+      - name: Run tests
+        run: ./gradlew test --continue
+
+      - name: Run lint
+        run: ./gradlew lint
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Build Release APK
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        run: ./gradlew assembleRelease
+
+      # ... (langkah-langkah upload dan lainnya)
