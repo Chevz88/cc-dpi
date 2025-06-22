@@ -11,6 +11,7 @@ on:
     branches:
       - main
       - develop
+  workflow_dispatch:  # Tambahkan untuk trigger manual
 
 jobs:
   build:
@@ -24,7 +25,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Validasi wrapper harus pertama
       - name: Validate Gradle Wrapper
         uses: gradle/wrapper-validation-action@v1
 
@@ -35,7 +35,6 @@ jobs:
           java-version: 17
           cache: 'gradle'
 
-      # Cache setelah validasi wrapper
       - name: Cache Gradle dependencies
         uses: actions/cache@v3
         with:
@@ -47,27 +46,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      # HAPUS step setup gradle wrapper manual (redundan)
-      # Gunakan wrapper yang sudah divalidasi
-
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Check Gradle version
-        run: ./gradlew --version
-
-      # PERBAIKI URUTAN: clean dulu!
       - name: Clean project
         run: ./gradlew clean
 
-      # Run tasks secara paralel untuk efisiensi
       - name: Run tests and lint
         run: |
-          ./gradlew test --continue &
-          ./gradlew lint &
-          wait # Tunggu semua selesai
+          ./gradlew test --continue
+          ./gradlew lint
 
-      # Deteksi modul utama secara dinamis
       - name: Detect main module
         id: detect_module
         run: |
@@ -79,7 +68,6 @@ jobs:
             echo "main_module=" >> $GITHUB_OUTPUT
           fi
 
-      # Build debug APK
       - name: Build Debug APK
         run: |
           if [ -z "${{ steps.detect_module.outputs.main_module }}" ]; then
@@ -88,7 +76,6 @@ jobs:
             ./gradlew ${{ steps.detect_module.outputs.main_module }}:assembleDebug
           fi
 
-      # PERBAIKI: Gunakan github.ref_type untuk handle tag
       - name: Build Release APK
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         run: |
@@ -98,7 +85,6 @@ jobs:
             ./gradlew ${{ steps.detect_module.outputs.main_module }}:assembleRelease
           fi
 
-      # Deteksi APK dengan pattern yang lebih akurat
       - name: Find APK files
         id: find_apk
         run: |
@@ -107,11 +93,7 @@ jobs:
           
           echo "debug_apk=${debug_apk}" >> $GITHUB_OUTPUT
           echo "release_apk=${release_apk}" >> $GITHUB_OUTPUT
-          
-          echo "Debug APK: ${debug_apk}"
-          echo "Release APK: ${release_apk}"
 
-      # Upload artifacts (tetap sama)
       - name: Upload Debug APK
         if: steps.find_apk.outputs.debug_apk
         uses: actions/upload-artifact@v4
@@ -126,10 +108,25 @@ jobs:
           name: release-apk-${{ github.run_number }}
           path: ${{ steps.find_apk.outputs.release_apk }}
 
-      # ... (step upload hasil test/lint tetap sama)
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ github.run_number }}
+          path: |
+            **/build/reports/tests/**
+            **/build/test-results/**
 
-      # PERBAIKI: Handle error dalam komentar PR
-      - name: Comment PR with Build Results
+      - name: Upload Lint Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-results-${{ github.run_number }}
+          path: |
+            **/build/reports/lint-results*.html
+            **/build/reports/lint-results*.xml
+
+      - name: Comment PR with Build Status
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         env:
@@ -138,32 +135,21 @@ jobs:
         with:
           script: |
             const { DEBUG_APK, BUILD_STATUS } = process.env;
-            let message = `## 📱 Build Result #${{ github.run_number }}\n`;
-            
-            if (BUILD_STATUS === 'success') {
-              message += '✅ **Build Success**\n';
-              if (DEBUG_APK) {
-                message += `- [Download Debug APK](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
-              }
-            } else {
-              message += '❌ **Build Failed**\n';
-              message += 'Check [build logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details\n';
-            }
-            
-            message += `- Commit: ${context.sha.substring(0,7)}\n`;
+            const message = BUILD_STATUS === 'success' 
+              ? `✅ Build berhasil! [Download APK](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})` 
+              : '❌ Build gagal! Periksa log untuk detailnya';
             
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: message
+              body: `## Build Result #${{ github.run_number }}\n${message}`
             });
 
   release:
     name: Create Release
     needs: [build]
     runs-on: ubuntu-latest
-    # PERBAIKI: Trigger dengan tag atau keyword
     if: startsWith(github.ref, 'refs/tags/v') || contains(github.event.head_commit.message, '[release]')
     
     steps:
@@ -176,7 +162,7 @@ jobs:
           pattern: release-apk-*
           path: ./release/
 
-      - name: Get version from tag
+      - name: Get version
         id: get_version
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
@@ -190,11 +176,8 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.get_version.outputs.version }}
-          name: v${{ steps.get_version.outputs.version }} Release
-          body: |
-            Production Release 🚀
-            - Build #${{ github.run_number }}
-            - Commit: ${{ github.sha }}
+          name: Release v${{ steps.get_version.outputs.version }}
+          body: "Production Release 🚀"
           files: ./release/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
