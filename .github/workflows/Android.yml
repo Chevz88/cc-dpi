@@ -40,24 +40,31 @@ jobs:
           curl -L -o gradlew https://raw.githubusercontent.com/gradle/gradle/master/gradlew
           chmod +x gradlew
           
-          # Download gradle-wrapper.jar
+          # Download gradle-wrapper.jar dari sumber resmi Gradle (versi 8.0)
           curl -L -o gradle/wrapper/gradle-wrapper.jar \
-            https://repo.maven.apache.org/maven2/org/glassfish/main/external/ant/4.6/ant-4.6.jar
+            https://github.com/gradle/gradle/raw/v8.0.0/gradle/wrapper/gradle-wrapper.jar
           
-          # Buat gradle-wrapper.properties dengan perintah echo
-          echo "distributionBase=GRADLE_USER_HOME" > gradle/wrapper/gradle-wrapper.properties
-          echo "distributionPath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
-          echo "distributionUrl=https\\://services.gradle.org/distributions/gradle-8.0-bin.zip" >> gradle/wrapper/gradle-wrapper.properties
-          echo "zipStoreBase=GRADLE_USER_HOME" >> gradle/wrapper/gradle-wrapper.properties
-          echo "zipStorePath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
+          # Berikan izin pada JAR
+          chmod +x gradle/wrapper/gradle-wrapper.jar
+          
+          # Buat gradle-wrapper.properties
+          cat <<'EOF' > gradle/wrapper/gradle-wrapper.properties
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-bin.zip
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+EOF
 
           # Verifikasi file
           echo "===== File Verification ====="
           file gradle/wrapper/gradle-wrapper.jar
           ls -lh gradle/wrapper/
+          echo "Checksum:"
+          sha256sum gradle/wrapper/gradle-wrapper.jar
           echo "============================="
 
       - name: Validate Gradle Wrapper
         uses: gradle/wrapper-validation-action@v1
 
-      # ... (langkah-langkah berikutnya tetap sama)
+      # ... (langkah-langkah selanjutnya)
