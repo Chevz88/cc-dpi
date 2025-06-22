@@ -25,29 +25,44 @@ jobs:
           distribution: 'temurin'
           java-version: 17
 
-      - name: Build with Gradle
-        run: |
-          # Masuk ke direktori project
-          cd CC-DPI-App
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-          # Install Gradle 8.0 jika belum ada
-          if ! command -v gradle &> /dev/null; then
-            wget https://services.gradle.org/distributions/gradle-8.0-bin.zip -P /tmp
-            sudo unzip -d /opt/gradle /tmp/gradle-8.0-bin.zip
-            export PATH=$PATH:/opt/gradle/gradle-8.0/bin
+      - name: Create settings.gradle if missing
+        run: |
+          if [ ! -f "settings.gradle" ]; then
+            echo "Creating settings.gradle..."
+            echo "pluginManagement {" > settings.gradle
+            echo "    repositories {" >> settings.gradle
+            echo "        gradlePluginPortal()" >> settings.gradle
+            echo "        google()" >> settings.gradle
+            echo "        mavenCentral()" >> settings.gradle
+            echo "    }" >> settings.gradle
+            echo "}" >> settings.gradle
+            echo "dependencyResolutionManagement {" >> settings.gradle
+            echo "    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)" >> settings.gradle
+            echo "    repositories {" >> settings.gradle
+            echo "        google()" >> settings.gradle
+            echo "        mavenCentral()" >> settings.gradle
+            echo "    }" >> settings.gradle
+            echo "}" >> settings.gradle
+            echo "rootProject.name = 'cc-dpi'" >> settings.gradle
+            echo "include ':CC-DPI-App'" >> settings.gradle
           fi
 
-          # Jalankan build dengan stacktrace untuk debug
-          gradle clean assembleDebug --stacktrace
+      - name: Build with Gradle
+        run: |
+          chmod +x ./gradlew || true
+          ./gradlew :CC-DPI-App:app:assembleDebug \
+            --refresh-dependencies \
+            --no-daemon \
+            --stacktrace \
+            -Dorg.gradle.daemon=false
 
       - name: Find Debug APK
         id: find_apk
         run: |
-          debug_apk=$(find CC-DPI-App -name "*debug*.apk" | head -1)
-          if [ -z "$debug_apk" ]; then
-            echo "APK not found!"
-            exit 1
-          fi
+          debug_apk=$(find . -path "*/build/outputs/apk/debug/*.apk" -print -quit)
           echo "debug_apk=${debug_apk}" >> $GITHUB_OUTPUT
           echo "Debug APK: ${debug_apk}"
 
