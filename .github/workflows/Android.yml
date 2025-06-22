@@ -20,6 +20,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      # PERBAIKAN: Berikan izin yang diperlukan pada file Gradle
+      - name: Fix Gradle Wrapper permissions
+        run: |
+          chmod +x ./gradlew
+          chmod -R +r ./gradle
+
       - name: Validate Gradle Wrapper
         uses: gradle/wrapper-validation-action@v1
 
@@ -41,15 +47,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x ./gradlew
-
       - name: Verify Gradle setup
         run: |
-          echo "Gradle Wrapper Version:"
           ./gradlew --version
-          echo "Gradle Dependencies:"
-          ./gradlew dependencies
 
       - name: Clean project
         run: ./gradlew clean
@@ -75,9 +75,5 @@ jobs:
           
           echo "debug_apk=${debug_apk}" >> $GITHUB_OUTPUT
           echo "release_apk=${release_apk}" >> $GITHUB_OUTPUT
-          
-          echo "Debug APK: ${debug_apk:-Not found}"
-          echo "Release APK: ${release_apk:-Not found}"
 
-      # Langkah-langkah upload dan komentar tetap sama seperti sebelumnya
-      # ...
+      # ... (langkah upload dan komentar)
