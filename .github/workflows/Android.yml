@@ -50,48 +50,44 @@ jobs:
 
       - name: Create settings.gradle
         run: |
-          cat <<EOF > settings.gradle
-pluginManagement {
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-rootProject.name = "cc-dpi"
-include ':app'
-EOF
+          echo -e "pluginManagement {\n\
+    repositories {\n\
+        google()\n\
+        mavenCentral()\n\
+        gradlePluginPortal()\n\
+    }\n\
+}\n\
+dependencyResolutionManagement {\n\
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)\n\
+    repositories {\n\
+        google()\n\
+        mavenCentral()\n\
+    }\n\
+}\n\
+rootProject.name = \"cc-dpi\"\n\
+include ':app'" > settings.gradle
 
       - name: Create root build.gradle
         run: |
-          cat <<EOF > build.gradle
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath "com.android.tools.build:gradle:8.0.2"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.22"
-    }
-}
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-task clean(type: Delete) {
-    delete rootProject.buildDir
-}
-EOF
+          echo -e "buildscript {\n\
+    repositories {\n\
+        google()\n\
+        mavenCentral()\n\
+    }\n\
+    dependencies {\n\
+        classpath \"com.android.tools.build:gradle:8.0.2\"\n\
+        classpath \"org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.22\"\n\
+    }\n\
+}\n\
+allprojects {\n\
+    repositories {\n\
+        google()\n\
+        mavenCentral()\n\
+    }\n\
+}\n\
+task clean(type: Delete) {\n\
+    delete rootProject.buildDir\n\
+}" > build.gradle
 
       - name: Restructure project
         run: |
