@@ -16,8 +16,6 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
-        with:
-          clean: true
 
       - name: Setup Java environment
         uses: actions/setup-java@v4
@@ -27,42 +25,88 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          build-tools-version: "34.0.0"
+          ndk-version: "25.2.9519653"
+          cmake-version: "3.22.1"
+          api-level: 34
 
-      - name: Create settings.gradle if missing
+      - name: Install Gradle 8.0.2
         run: |
-          if [ ! -f "settings.gradle" ]; then
-            echo "Creating settings.gradle..."
-            echo "pluginManagement {" > settings.gradle
-            echo "    repositories {" >> settings.gradle
-            echo "        gradlePluginPortal()" >> settings.gradle
-            echo "        google()" >> settings.gradle
-            echo "        mavenCentral()" >> settings.gradle
-            echo "    }" >> settings.gradle
-            echo "}" >> settings.gradle
-            echo "dependencyResolutionManagement {" >> settings.gradle
-            echo "    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)" >> settings.gradle
-            echo "    repositories {" >> settings.gradle
-            echo "        google()" >> settings.gradle
-            echo "        mavenCentral()" >> settings.gradle
-            echo "    }" >> settings.gradle
-            echo "}" >> settings.gradle
-            echo "rootProject.name = 'cc-dpi'" >> settings.gradle
-            echo "include ':CC-DPI-App'" >> settings.gradle
-          fi
+          # Download Gradle
+          wget https://services.gradle.org/distributions/gradle-8.0.2-bin.zip -P /tmp
+          sudo unzip -d /opt/gradle /tmp/gradle-8.0.2-bin.zip
+          # Set environment variables
+          echo "GRADLE_HOME=/opt/gradle/gradle-8.0.2" >> $GITHUB_ENV
+          echo "PATH=$PATH:/opt/gradle/gradle-8.0.2/bin" >> $GITHUB_ENV
 
-      - name: Build with Gradle
+      - name: Create proper settings.gradle
         run: |
-          chmod +x ./gradlew || true
-          ./gradlew :CC-DPI-App:app:assembleDebug \
-            --refresh-dependencies \
-            --no-daemon \
-            --stacktrace \
-            -Dorg.gradle.daemon=false
+          cat << 'EOF' > settings.gradle
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "cc-dpi"
+include ':app'
+EOF
+
+      - name: Create root build.gradle
+        run: |
+          cat << 'EOF' > build.gradle
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath "com.android.tools.build:gradle:8.0.2"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.22"
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
+EOF
+
+      - name: Move app module to correct structure
+        run: |
+          mkdir -p app/src/main
+          mv CC-DPI-App/app/build.gradle app/
+          mv CC-DPI-App/app/src/* app/src/main/
+          rm -rf CC-DPI-App
+
+      - name: Build Android project
+        run: |
+          gradle :app:assembleDebug --stacktrace
 
       - name: Find Debug APK
         id: find_apk
         run: |
           debug_apk=$(find . -path "*/build/outputs/apk/debug/*.apk" -print -quit)
+          if [ -z "$debug_apk" ]; then
+            echo "APK not found! Project structure:"
+            find . -maxdepth 3 -type d -print | sort
+            exit 1
+          fi
           echo "debug_apk=${debug_apk}" >> $GITHUB_OUTPUT
           echo "Debug APK: ${debug_apk}"
 
