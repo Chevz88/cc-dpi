@@ -25,15 +25,14 @@ jobs:
           distribution: 'temurin'
           java-version: 17
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          build-tools-version: "34.0.0"
-          api-level: 34
+      - name: Setup Android SDK (manual)
+        run: |
+          echo "Installing Android SDK packages..."
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Install Gradle
         run: |
-          # Install SDKMAN! (lebih ringkas)
           curl -s "https://get.sdkman.io" | bash
           source "$HOME/.sdkman/bin/sdkman-init.sh"
           sdk install gradle 8.0
@@ -41,51 +40,52 @@ jobs:
 
       - name: Create settings.gradle
         run: |
-          echo "pluginManagement {" > settings.gradle
-          echo "    repositories {" >> settings.gradle
-          echo "        google()" >> settings.gradle
-          echo "        mavenCentral()" >> settings.gradle
-          echo "        gradlePluginPortal()" >> settings.gradle
-          echo "    }" >> settings.gradle
-          echo "}" >> settings.gradle
-          echo "dependencyResolutionManagement {" >> settings.gradle
-          echo "    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)" >> settings.gradle
-          echo "    repositories {" >> settings.gradle
-          echo "        google()" >> settings.gradle
-          echo "        mavenCentral()" >> settings.gradle
-          echo "    }" >> settings.gradle
-          echo "}" >> settings.gradle
-          echo "rootProject.name = \"cc-dpi\"" >> settings.gradle
-          echo "include ':app'" >> settings.gradle
+          cat <<EOF > settings.gradle
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "cc-dpi"
+include ':app'
+EOF
 
       - name: Create root build.gradle
         run: |
-          echo "buildscript {" > build.gradle
-          echo "    repositories {" >> build.gradle
-          echo "        google()" >> build.gradle
-          echo "        mavenCentral()" >> build.gradle
-          echo "    }" >> build.gradle
-          echo "    dependencies {" >> build.gradle
-          echo "        classpath \"com.android.tools.build:gradle:8.0.2\"" >> build.gradle
-          echo "        classpath \"org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.22\"" >> build.gradle
-          echo "    }" >> build.gradle
-          echo "}" >> build.gradle
-          echo "allprojects {" >> build.gradle
-          echo "    repositories {" >> build.gradle
-          echo "        google()" >> build.gradle
-          echo "        mavenCentral()" >> build.gradle
-          echo "    }" >> build.gradle
-          echo "}" >> build.gradle
-          echo "task clean(type: Delete) {" >> build.gradle
-          echo "    delete rootProject.buildDir" >> build.gradle
-          echo "}" >> build.gradle
+          cat <<EOF > build.gradle
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath "com.android.tools.build:gradle:8.0.2"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.22"
+    }
+}
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
+EOF
 
       - name: Restructure project
         run: |
-          # Buat struktur direktori yang benar
           mkdir -p app/src/main
-          
-          # Pindahkan file dari struktur lama ke struktur baru
           if [ -d "CC-DPI-App" ]; then
             mv CC-DPI-App/app/build.gradle app/
             mv CC-DPI-App/app/src/* app/src/main/
