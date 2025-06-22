@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
+        with:
+          clean: true
 
       - name: Setup Java environment
         uses: actions/setup-java@v4
@@ -31,77 +33,68 @@ jobs:
           cmake-version: "3.22.1"
           api-level: 34
 
-      - name: Install Gradle 8.0.2
-        run: |
-          # Download Gradle
-          wget https://services.gradle.org/distributions/gradle-8.0.2-bin.zip -P /tmp
-          sudo unzip -d /opt/gradle /tmp/gradle-8.0.2-bin.zip
-          # Set environment variables
-          echo "GRADLE_HOME=/opt/gradle/gradle-8.0.2" >> $GITHUB_ENV
-          echo "PATH=$PATH:/opt/gradle/gradle-8.0.2/bin" >> $GITHUB_ENV
-
       - name: Create proper settings.gradle
         run: |
-          cat << 'EOF' > settings.gradle
-pluginManagement {
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-rootProject.name = "cc-dpi"
-include ':app'
-EOF
+          # Buat file settings.gradle dengan konten yang diperlukan
+          echo "pluginManagement {" > settings.gradle
+          echo "    repositories {" >> settings.gradle
+          echo "        google()" >> settings.gradle
+          echo "        mavenCentral()" >> settings.gradle
+          echo "        gradlePluginPortal()" >> settings.gradle
+          echo "    }" >> settings.gradle
+          echo "}" >> settings.gradle
+          echo "dependencyResolutionManagement {" >> settings.gradle
+          echo "    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)" >> settings.gradle
+          echo "    repositories {" >> settings.gradle
+          echo "        google()" >> settings.gradle
+          echo "        mavenCentral()" >> settings.gradle
+          echo "    }" >> settings.gradle
+          echo "}" >> settings.gradle
+          echo "rootProject.name = \"cc-dpi\"" >> settings.gradle
+          echo "include ':app'" >> settings.gradle
 
       - name: Create root build.gradle
         run: |
-          cat << 'EOF' > build.gradle
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath "com.android.tools.build:gradle:8.0.2"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.22"
-    }
-}
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
-task clean(type: Delete) {
-    delete rootProject.buildDir
-}
-EOF
+          echo "buildscript {" > build.gradle
+          echo "    repositories {" >> build.gradle
+          echo "        google()" >> build.gradle
+          echo "        mavenCentral()" >> build.gradle
+          echo "    }" >> build.gradle
+          echo "    dependencies {" >> build.gradle
+          echo "        classpath \"com.android.tools.build:gradle:8.0.2\"" >> build.gradle
+          echo "        classpath \"org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.22\"" >> build.gradle
+          echo "    }" >> build.gradle
+          echo "}" >> build.gradle
+          echo "" >> build.gradle
+          echo "allprojects {" >> build.gradle
+          echo "    repositories {" >> build.gradle
+          echo "        google()" >> build.gradle
+          echo "        mavenCentral()" >> build.gradle
+          echo "    }" >> build.gradle
+          echo "}" >> build.gradle
+          echo "" >> build.gradle
+          echo "task clean(type: Delete) {" >> build.gradle
+          echo "    delete rootProject.buildDir" >> build.gradle
+          echo "}" >> build.gradle
 
       - name: Move app module to correct structure
         run: |
-          mkdir -p app/src/main
-          mv CC-DPI-App/app/build.gradle app/
-          mv CC-DPI-App/app/src/* app/src/main/
-          rm -rf CC-DPI-App
+          # Jika direktori CC-DPI-App ada, pindahkan isinya ke struktur standar
+          if [ -d "CC-DPI-App" ]; then
+            mkdir -p app
+            mv CC-DPI-App/app/build.gradle app/
+            mv CC-DPI-App/app/src app/src
+            rm -rf CC-DPI-App
+          fi
 
       - name: Build Android project
         run: |
-          gradle :app:assembleDebug --stacktrace
+          ./gradlew :app:assembleDebug --stacktrace
 
       - name: Find Debug APK
         id: find_apk
         run: |
-          debug_apk=$(find . -path "*/build/outputs/apk/debug/*.apk" -print -quit)
+          debug_apk=$(find app/build/outputs/apk -name "*.apk" | grep debug | head -1)
           if [ -z "$debug_apk" ]; then
             echo "APK not found! Project structure:"
             find . -maxdepth 3 -type d -print | sort
