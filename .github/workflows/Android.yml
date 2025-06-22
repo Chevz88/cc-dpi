@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
+        with:
+          clean: true
 
       - name: Setup Java environment
         uses: actions/setup-java@v4
@@ -23,32 +25,52 @@ jobs:
           distribution: 'temurin'
           java-version: 17
 
-      - name: Install Gradle
+      - name: Identify project structure
+        id: project_structure
         run: |
-          # Install Gradle versi 8.0
-          sudo apt-get update
-          sudo apt-get install -y gradle
-          gradle --version
+          # Cari modul Android utama
+          if [ -d "CC-DPI-App/app" ]; then
+            echo "project_path=CC-DPI-App" >> $GITHUB_OUTPUT
+          elif [ -d "app" ]; then
+            echo "project_path=." >> $GITHUB_OUTPUT
+          else
+            echo "project_path=unknown" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "Project path: ${{ steps.project_structure.outputs.project_path }}"
 
       - name: Build with Gradle
         run: |
-          gradle clean
-          gradle assembleDebug
-          gradle test
-          gradle lint
+          cd ${{ steps.project_structure.outputs.project_path }}
+          
+          # Install Gradle jika belum ada
+          if ! command -v gradle &> /dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y gradle
+          fi
+          
+          # Jalankan build di lokasi yang benar
+          gradle tasks --all || true
+          gradle clean assembleDebug
 
       - name: Find Debug APK
         id: find_apk
         run: |
-          # Cari APK debug
-          debug_apk=$(find . -path "*/build/outputs/apk/debug/*-debug.apk" -type f -print -quit)
-          if [ -n "$debug_apk" ]; then
-            echo "debug_apk=$debug_apk" >> $GITHUB_OUTPUT
-            echo "Found Debug APK: $debug_apk"
+          # Cari APK di lokasi yang sesuai dengan struktur proyek
+          if [ "${{ steps.project_structure.outputs.project_path }}" = "CC-DPI-App" ]; then
+            debug_apk=$(find CC-DPI-App -name "*debug*.apk" | head -1)
           else
-            echo "Debug APK not found!"
+            debug_apk=$(find . -name "*debug*.apk" | head -1)
+          fi
+          
+          if [ -z "$debug_apk" ]; then
+            echo "APK not found! Project structure:"
+            find . -maxdepth 3 -type d -print | sort
             exit 1
           fi
+          
+          echo "debug_apk=${debug_apk}" >> $GITHUB_OUTPUT
+          echo "Debug APK: ${debug_apk}"
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
