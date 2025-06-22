@@ -42,7 +42,7 @@ jobs:
           
           # Download gradle-wrapper.jar
           curl -L -o gradle/wrapper/gradle-wrapper.jar \
-            https://repo.maven.apache.org/maven2/org/glassfish/main/external/ant/4.6/ant-4.6.jar
+            https://github.com/gradle/gradle/raw/v8.0.0/gradle/wrapper/gradle-wrapper.jar
           
           # Buat gradle-wrapper.properties
           cat <<'EOF' > gradle/wrapper/gradle-wrapper.properties
@@ -73,20 +73,9 @@ EOF
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Run Gradle tasks directly with Java
+      - name: Run Gradle tasks
         run: |
-          # Gunakan Java langsung untuk menjalankan task
-          java -jar gradle/wrapper/gradle-wrapper.jar clean --version
-          java -jar gradle/wrapper/gradle-wrapper.jar tasks
-
-      - name: Clean project (direct execution)
-        run: java -jar gradle/wrapper/gradle-wrapper.jar clean
-
-      - name: Build Debug APK (direct execution)
-        run: java -jar gradle/wrapper/gradle-wrapper.jar assembleDebug
-
-      - name: Build Release APK (direct execution)
-        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
-        run: java -jar gradle/wrapper/gradle-wrapper.jar assembleRelease
+          ./gradlew clean
+          ./gradlew assembleDebug
 
       # ... (langkah-langkah lainnya tetap sama)
