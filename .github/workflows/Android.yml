@@ -25,50 +25,29 @@ jobs:
           distribution: 'temurin'
           java-version: 17
 
-      - name: Identify project structure
-        id: project_structure
-        run: |
-          # Cari modul Android utama
-          if [ -d "CC-DPI-App/app" ]; then
-            echo "project_path=CC-DPI-App" >> $GITHUB_OUTPUT
-          elif [ -d "app" ]; then
-            echo "project_path=." >> $GITHUB_OUTPUT
-          else
-            echo "project_path=unknown" >> $GITHUB_OUTPUT
-          fi
-          
-          echo "Project path: ${{ steps.project_structure.outputs.project_path }}"
-
       - name: Build with Gradle
         run: |
-          cd ${{ steps.project_structure.outputs.project_path }}
-          
-          # Install Gradle jika belum ada
+          # Masuk ke direktori project
+          cd CC-DPI-App
+
+          # Install Gradle 8.0 jika belum ada
           if ! command -v gradle &> /dev/null; then
-            sudo apt-get update
-            sudo apt-get install -y gradle
+            wget https://services.gradle.org/distributions/gradle-8.0-bin.zip -P /tmp
+            sudo unzip -d /opt/gradle /tmp/gradle-8.0-bin.zip
+            export PATH=$PATH:/opt/gradle/gradle-8.0/bin
           fi
-          
-          # Jalankan build di lokasi yang benar
-          gradle tasks --all || true
-          gradle clean assembleDebug
+
+          # Jalankan build dengan stacktrace untuk debug
+          gradle clean assembleDebug --stacktrace
 
       - name: Find Debug APK
         id: find_apk
         run: |
-          # Cari APK di lokasi yang sesuai dengan struktur proyek
-          if [ "${{ steps.project_structure.outputs.project_path }}" = "CC-DPI-App" ]; then
-            debug_apk=$(find CC-DPI-App -name "*debug*.apk" | head -1)
-          else
-            debug_apk=$(find . -name "*debug*.apk" | head -1)
-          fi
-          
+          debug_apk=$(find CC-DPI-App -name "*debug*.apk" | head -1)
           if [ -z "$debug_apk" ]; then
-            echo "APK not found! Project structure:"
-            find . -maxdepth 3 -type d -print | sort
+            echo "APK not found!"
             exit 1
           fi
-          
           echo "debug_apk=${debug_apk}" >> $GITHUB_OUTPUT
           echo "Debug APK: ${debug_apk}"
 
