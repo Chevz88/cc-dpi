@@ -82,22 +82,40 @@ jobs:
                   targetSdk 34
                   versionCode 1
                   versionName "1.0"
+                  
+                  testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
               }
               
               buildTypes {
                   debug {
                       minifyEnabled false
+                      signingConfig signingConfigs.debug
                   }
+              }
+              
+              buildFeatures {
+                  buildConfig true
+              }
+              
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = '17'
               }
           }
           
           dependencies {
               implementation 'androidx.core:core-ktx:1.12.0'
               implementation 'androidx.appcompat:appcompat:1.6.1'
+              
+              testImplementation 'junit:junit:4.13.2'
+              androidTestImplementation 'androidx.test.ext:junit:1.1.5'
           }
           EOF
           
-          # top-level build.gradle
+          # top-level build.gradle (FIXED: removed allprojects block)
           cat > build.gradle <<EOF
           buildscript {
               repositories {
@@ -110,16 +128,18 @@ jobs:
               }
           }
           
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          
           task clean(type: Delete) {
               delete rootProject.buildDir
           }
+          EOF
+          
+          # Create debug signing config
+          mkdir -p app/src/debug
+          cat > app/src/debug/AndroidManifest.xml <<EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application android:debuggable="true" />
+          </manifest>
           EOF
 
       - name: Setup Gradle Wrapper
@@ -139,28 +159,25 @@ jobs:
           # Verify wrapper
           ./gradlew --version
 
-      - name: Show project structure
-        run: |
-          ls -la
-          ls -la app
-
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace --no-daemon
-
-      - name: Find Debug APK
-        id: find_apk
         run: |
-          echo "Searching for APK..."
-          apk_path=$(find app/build/outputs/apk/debug -name "*.apk" | head -n 1)
-          if [ -z "$apk_path" ]; then
-            echo "APK not found! Listing app/build:"
-            ls -R app/build
+          # Sync project first
+          ./gradlew :app:preBuild --stacktrace --no-daemon
+          
+          # Then build APK
+          ./gradlew :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Verify APK exists
+        run: |
+          echo "Checking APK path..."
+          ls -R app/build/outputs/apk
+          if [ ! -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+            echo "APK not found at expected location!"
             exit 1
           fi
-          echo "debug_apk=$apk_path" >> $GITHUB_OUTPUT
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: debug-apk
-          path: ${{ steps.find_apk.outputs.debug_apk }}
+          path: app/build/outputs/apk/debug/app-debug.apk
