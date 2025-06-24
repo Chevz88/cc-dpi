@@ -1,21 +1,56 @@
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:8.0.2'
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.10"
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+plugins {
+    id 'com.android.application' version '8.0.2' apply false
+    id 'com.android.library' version '8.0.2' apply false
+    id 'org.jetbrains.kotlin.android' version '1.8.22' apply false
+    id 'org.jetbrains.kotlin.plugin.serialization' version '1.8.22' apply false
+    id 'com.google.dagger.hilt.android' version '2.48' apply false
+    id 'com.google.gms.google-services' version '4.4.0' apply false
+    id 'com.google.firebase.crashlytics' version '2.9.9' apply false
+}
+
+// Konfigurasi untuk semua modul
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty("android")) {
+            android {
+                compileSdk = 34
+                defaultConfig {
+                    minSdk = 24
+                    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+                }
+                compileOptions {
+                    sourceCompatibility = JavaVersion.VERSION_17
+                    targetCompatibility = JavaVersion.VERSION_17
+                }
+                kotlinOptions {
+                    jvmTarget = '17'
+                }
+                buildFeatures {
+                    compose true
+                }
+                composeOptions {
+                    kotlinCompilerExtensionVersion = '1.5.4'
+                }
+            }
+        }
     }
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
+// Konfigurasi ekstensi untuk dependency versions
+ext {
+    // Versi library umum
+    composeBom = "2023.10.01"
+    roomVersion = "2.6.0"
+    retrofitVersion = "2.9.0"
+    okhttpVersion = "4.12.0"
+    hiltVersion = "2.48"
+    coroutinesVersion = "1.7.3"
+    navigationVersion = "2.7.4"
+    lifecycleVersion = "2.6.2"
 }
 
-task clean(type: Delete) {
-    delete rootProject.buildDir
+// Clean task untuk menghapus build directory
+tasks.register('clean', Delete) {
+    delete rootProject.layout.buildDirectory
 }
