@@ -46,8 +46,9 @@ jobs:
           mkdir -p app/src/main/java/com/pekerja/app
           mkdir -p app/src/main/res
           
+          # PERBAIKAN: Gunakan EOF tanpa indentasi untuk konten XML
           if [ ! -f "app/src/main/AndroidManifest.xml" ]; then
-            cat > app/src/main/AndroidManifest.xml <<EOF
+            cat > app/src/main/AndroidManifest.xml <<'EOF'
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.pekerja.app">
 
@@ -76,8 +77,7 @@ EOF
 
       - name: Setup Gradle Configuration
         run: |
-          # PERBAIKAN: settings.gradle - Hapus repositoriesMode yang bermasalah
-          cat > settings.gradle <<EOF
+          cat > settings.gradle <<'EOF'
 pluginManagement {
     repositories {
         google()
@@ -95,9 +95,8 @@ rootProject.name = "cc-dpi"
 include ':app'
 EOF
           
-          # app/build.gradle
           mkdir -p app
-          cat > app/build.gradle <<EOF
+          cat > app/build.gradle <<'EOF'
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
@@ -143,8 +142,7 @@ dependencies {
 }
 EOF
           
-          # PERBAIKAN: build.gradle level project - tanpa allprojects block
-          cat > build.gradle <<EOF
+          cat > build.gradle <<'EOF'
 buildscript {
     repositories {
         google()
@@ -161,8 +159,7 @@ task clean(type: Delete) {
 }
 EOF
           
-          # gradle.properties
-          cat > gradle.properties <<EOF
+          cat > gradle.properties <<'EOF'
 org.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8
 android.useAndroidX=true
 android.enableJetifier=true
@@ -170,7 +167,7 @@ android.suppressUnsupportedCompileSdk=34
 EOF
           
           mkdir -p app/src/debug
-          cat > app/src/debug/AndroidManifest.xml <<EOF
+          cat > app/src/debug/AndroidManifest.xml <<'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application android:debuggable="true" />
