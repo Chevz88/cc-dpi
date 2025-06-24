@@ -44,12 +44,20 @@ jobs:
           mv cmdline-tools latest
           rm commandlinetools.zip
 
-      - name: Setup Android SDK (manual)
+      - name: Accept all SDK licenses & install full packages
         run: |
-          echo "Accepting Android SDK licenses..."
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          export ANDROID_SDK_ROOT=$ANDROID_HOME
+          mkdir -p ~/.android && echo '### User Agreements accepted' > ~/.android/repositories.cfg
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
-            "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            "emulator" \
+            "extras;android;m2repository" \
+            "extras;google;m2repository" \
+            "extras;google;google_play_services" \
+            "extras;google;gcm"
 
       - name: Install Gradle
         run: |
