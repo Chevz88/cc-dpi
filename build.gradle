@@ -13,7 +13,7 @@ plugins {
 subprojects {
     afterEvaluate { project ->
         if (project.plugins.hasPlugin("com.android.application") || project.plugins.hasPlugin("com.android.library")) {
-            android {
+            project.extensions.findByName("android")?.apply {
                 compileSdk = 34
                 defaultConfig {
                     minSdk = 24
