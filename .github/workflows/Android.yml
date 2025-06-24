@@ -39,14 +39,30 @@ jobs:
           api-level: 34
           build-tools-version: 34.0.0
 
-      - name: Create Gradle Wrapper
+      - name: Setup Gradle Wrapper
         run: |
-          # Hanya generate wrapper jika belum ada
+          # Generate gradle wrapper if not exists
           if [ ! -f "gradlew" ]; then
+            echo "Generating Gradle wrapper..."
             gradle wrapper --gradle-version 8.0 --distribution-type bin
+          else
+            echo "Gradle wrapper already exists"
           fi
+          
+          # Set execute permissions for gradlew
           chmod +x gradlew
-          chmod -R 755 gradle
+          echo "Set execute permission for gradlew"
+          
+          # Set permissions for gradle directory only if exists
+          if [ -d "gradle" ]; then
+            chmod -R 755 gradle
+            echo "Set permissions for gradle directory"
+          else
+            echo "gradle directory not found, skipping permission change"
+          fi
+          
+          # Verify wrapper
+          ./gradlew --version
 
       - name: Build Debug APK
         run: ./gradlew :app:assembleDebug --stacktrace --no-daemon
@@ -57,7 +73,8 @@ jobs:
           echo "Searching for APK..."
           apk_path=$(find app/build/outputs/apk/debug -name "*.apk" | head -n 1)
           if [ -z "$apk_path" ]; then
-            echo "APK not found!"
+            echo "APK not found! Listing app/build:"
+            ls -R app/build
             exit 1
           fi
           echo "debug_apk=$apk_path" >> $GITHUB_OUTPUT
