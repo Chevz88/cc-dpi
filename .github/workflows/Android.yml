@@ -48,151 +48,139 @@ jobs:
           
           if [ ! -f "app/src/main/AndroidManifest.xml" ]; then
             cat > app/src/main/AndroidManifest.xml <<EOF
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-              package="com.pekerja.app">
-          
-              <uses-permission android:name="android.permission.INTERNET" />
-          
-              <application
-                  android:allowBackup="true"
-                  android:label="CC-DPI App"
-                  android:icon="@mipmap/ic_launcher"
-                  android:roundIcon="@mipmap/ic_launcher_round"
-                  android:supportsRtl="true"
-                  android:theme="@style/Theme.Material3.DayNight.NoActionBar">
-                  
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>
-          EOF
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.pekerja.app">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="true"
+        android:label="CC-DPI App"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+        
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+EOF
           fi
 
       - name: Setup Gradle Configuration
         run: |
-          # settings.gradle
+          # PERBAIKAN: settings.gradle - Hapus repositoriesMode yang bermasalah
           cat > settings.gradle <<EOF
-          pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          rootProject.name = "cc-dpi"
-          include ':app'
-          EOF
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "cc-dpi"
+include ':app'
+EOF
           
           # app/build.gradle
           mkdir -p app
           cat > app/build.gradle <<EOF
-          plugins {
-              id 'com.android.application'
-              id 'org.jetbrains.kotlin.android'
-          }
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.pekerja.app'
+    compileSdk 34
+    
+    defaultConfig {
+        applicationId "com.pekerja.app"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+        
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+    
+    buildTypes {
+        debug {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+    }
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+}
+EOF
           
-          android {
-              namespace 'com.pekerja.app'
-              compileSdk 34
-              
-              defaultConfig {
-                  applicationId "com.pekerja.app"
-                  minSdk 24
-                  targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
-                  
-                  testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-              }
-              
-              buildTypes {
-                  debug {
-                      minifyEnabled false
-                      signingConfig signingConfigs.debug
-                  }
-              }
-              
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
-              }
-              kotlinOptions {
-                  jvmTarget = '17'
-              }
-          }
-          
-          dependencies {
-              implementation 'androidx.core:core-ktx:1.12.0'
-              implementation 'androidx.appcompat:appcompat:1.6.1'
-              implementation 'com.google.android.material:material:1.11.0'
-              
-              testImplementation 'junit:junit:4.13.2'
-              androidTestImplementation 'androidx.test.ext:junit:1.1.5'
-          }
-          EOF
-          
-          # PERBAIKAN: build.gradle level project (tanpa komentar inline)
+          # PERBAIKAN: build.gradle level project - tanpa allprojects block
           cat > build.gradle <<EOF
-          buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:8.2.0'
-                  classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22'
-              }
-          }
-          
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          
-          task clean(type: Delete) {
-              delete rootProject.buildDir
-          }
-          EOF
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.2.0'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22'
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
+EOF
           
           # gradle.properties
           cat > gradle.properties <<EOF
-          org.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8
-          android.useAndroidX=true
-          android.enableJetifier=true
-          android.suppressUnsupportedCompileSdk=34
-          EOF
+org.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8
+android.useAndroidX=true
+android.enableJetifier=true
+android.suppressUnsupportedCompileSdk=34
+EOF
           
           mkdir -p app/src/debug
           cat > app/src/debug/AndroidManifest.xml <<EOF
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <application android:debuggable="true" />
-          </manifest>
-          EOF
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:debuggable="true" />
+</manifest>
+EOF
 
       - name: Setup Gradle Wrapper
         run: |
-          # Hapus wrapper yang ada
           rm -f gradlew gradlew.bat gradle/wrapper/gradle-wrapper.jar
-          
-          # Generate wrapper baru
           gradle wrapper --gradle-version 8.4 --distribution-type bin
-          
           chmod +x gradlew
           ./gradlew --version
 
@@ -206,7 +194,7 @@ jobs:
           if [ ! -f "$APK_PATH" ]; then
             echo "APK not found at $APK_PATH"
             echo "Directory structure:"
-            ls -R app/build
+            find . -name "*.apk" -exec echo "Found APK: {}" \;
             exit 1
           else
             echo "APK generated successfully: $(ls -lh $APK_PATH)"
