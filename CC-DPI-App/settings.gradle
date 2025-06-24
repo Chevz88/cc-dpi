@@ -1,6 +1,18 @@
-pluginManagement { repositories { google() mavenCentral() gradlePluginPortal() } }
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
 
-dependencyResolutionManagement { // Ganti dari FAIL_ON_PROJECT_REPOS ke PREFER_SETTINGS biar fleksibel repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS) repositories { google() mavenCentral() } }
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
 
-rootProject.name = "cc-dpi" include ':app'
-
+rootProject.name = "cc-dpi"
+include ':app'
