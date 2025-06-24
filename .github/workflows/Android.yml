@@ -39,9 +39,12 @@ jobs:
           api-level: 34
           build-tools-version: 34.0.0
 
-      - name: Setup Gradle repositories
+      - name: Setup Gradle Configuration
         run: |
-          # Buat atau overwrite settings.gradle untuk memastikan repositori plugin dan dependency benar
+          # Create minimal build files
+          echo "Creating build.gradle and settings.gradle..."
+          
+          # settings.gradle
           cat > settings.gradle <<EOF
           pluginManagement {
               repositories {
@@ -60,35 +63,74 @@ jobs:
           rootProject.name = "cc-dpi"
           include ':app'
           EOF
+          
+          # app/build.gradle
+          mkdir -p app
+          cat > app/build.gradle <<EOF
+          plugins {
+              id 'com.android.application'
+              id 'org.jetbrains.kotlin.android'
+          }
+          
+          android {
+              namespace 'com.example.ccdpi'
+              compileSdk 34
+              
+              defaultConfig {
+                  applicationId "com.example.ccdpi"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+              
+              buildTypes {
+                  debug {
+                      minifyEnabled false
+                  }
+              }
+          }
+          
+          dependencies {
+              implementation 'androidx.core:core-ktx:1.12.0'
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+          }
+          EOF
+          
+          # top-level build.gradle
+          cat > build.gradle <<EOF
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.0.2'
+                  classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.22'
+              }
+          }
+          
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          
+          task clean(type: Delete) {
+              delete rootProject.buildDir
+          }
+          EOF
 
       - name: Setup Gradle Wrapper
         run: |
-          # Hapus wrapper yang ada jika tidak lengkap
-          if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
-            echo "Re-generating Gradle wrapper (missing jar file)..."
-            rm -f gradlew gradlew.bat
-            rm -rf gradle
-          fi
+          # Hapus wrapper yang ada untuk memastikan fresh start
+          rm -f gradlew gradlew.bat
+          rm -rf gradle
           
-          # Generate gradle wrapper jika belum ada
-          if [ ! -f "gradlew" ]; then
-            echo "Generating new Gradle wrapper..."
-            gradle wrapper --gradle-version 8.0 --distribution-type bin
-          else
-            echo "Gradle wrapper script exists"
-          fi
-          
-          # Pastikan folder wrapper ada
-          if [ ! -d "gradle/wrapper" ]; then
-            echo "Creating missing wrapper directory..."
-            mkdir -p gradle/wrapper
-          fi
-          
-          # Download gradle-wrapper.jar jika hilang
-          if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
-            echo "Downloading missing gradle-wrapper.jar..."
-            curl -L https://repo.maven.apache.org/maven2/org/gradle/wrapper/gradle-wrapper/8.0/gradle-wrapper-8.0.jar -o gradle/wrapper/gradle-wrapper.jar
-          fi
+          # Generate new gradle wrapper
+          echo "Generating new Gradle wrapper..."
+          gradle wrapper --gradle-version 8.0 --distribution-type bin
           
           # Set execute permissions
           chmod +x gradlew
@@ -97,8 +139,13 @@ jobs:
           # Verify wrapper
           ./gradlew --version
 
+      - name: Show project structure
+        run: |
+          ls -la
+          ls -la app
+
       - name: Build Debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace --no-daemon
+        run: ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Find Debug APK
         id: find_apk
