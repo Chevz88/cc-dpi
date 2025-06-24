@@ -7,14 +7,7 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
-buildscript {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS) // <--- Ini yang krusial!
     repositories {
         google()
         mavenCentral()
