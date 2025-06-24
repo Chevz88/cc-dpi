@@ -41,9 +41,9 @@ jobs:
 
       - name: Setup Gradle Configuration
         run: |
-          # Create minimal build files
-          echo "Creating build.gradle and settings.gradle..."
-          
+          # Membuat file build.gradle dan settings.gradle dengan package yang benar
+          echo "Creating build.gradle and settings.gradle with corrected package..."
+
           # settings.gradle
           cat > settings.gradle <<EOF
           pluginManagement {
@@ -64,7 +64,7 @@ jobs:
           include ':app'
           EOF
           
-          # app/build.gradle
+          # app/build.gradle - Perbaikan: package disesuaikan dengan manifest (com.pekerja.app)
           mkdir -p app
           cat > app/build.gradle <<EOF
           plugins {
@@ -73,11 +73,11 @@ jobs:
           }
           
           android {
-              namespace 'com.example.ccdpi'
+              namespace 'com.pekerja.app'
               compileSdk 34
               
               defaultConfig {
-                  applicationId "com.example.ccdpi"
+                  applicationId "com.pekerja.app"
                   minSdk 24
                   targetSdk 34
                   versionCode 1
@@ -115,7 +115,7 @@ jobs:
           }
           EOF
           
-          # top-level build.gradle (FIXED: removed allprojects block)
+          # build.gradle (project level) - Update Android Gradle Plugin ke 8.2.0
           cat > build.gradle <<EOF
           buildscript {
               repositories {
@@ -123,8 +123,8 @@ jobs:
                   mavenCentral()
               }
               dependencies {
-                  classpath 'com.android.tools.build:gradle:8.0.2'
-                  classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.22'
+                  classpath 'com.android.tools.build:gradle:8.2.0'  # Diperbarui ke versi terbaru
+                  classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.20'  # Diperbarui
               }
           }
           
@@ -133,7 +133,7 @@ jobs:
           }
           EOF
           
-          # Create debug signing config
+          # Membuat debug signing config (opsional, untuk memastikan debuggable)
           mkdir -p app/src/debug
           cat > app/src/debug/AndroidManifest.xml <<EOF
           <?xml version="1.0" encoding="utf-8"?>
@@ -141,6 +141,67 @@ jobs:
               <application android:debuggable="true" />
           </manifest>
           EOF
+
+      - name: Create Main AndroidManifest.xml
+        run: |
+          # Membuat direktori utama jika belum ada
+          mkdir -p app/src/main
+          
+          # Membuat file AndroidManifest.xml di src/main
+          cat > app/src/main/AndroidManifest.xml <<EOF
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="com.pekerja.app">
+          
+              <!-- Izin internet agar Retrofit bisa bekerja -->
+              <uses-permission android:name="android.permission.INTERNET" />
+          
+              <application
+                  android:allowBackup="true"
+                  android:label="CC-DPI App"
+                  android:icon="@mipmap/ic_launcher"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:supportsRtl="true"
+                  android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+                  
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+                  
+              </application>
+          
+          </manifest>
+          EOF
+
+      - name: Create Minimal Resource Files
+        run: |
+          # Membuat direktori res minimal untuk menghindari error resource
+          mkdir -p app/src/main/res/values
+          
+          # Buat file strings.xml minimal
+          cat > app/src/main/res/values/strings.xml <<EOF
+          <resources>
+              <string name="app_name">CC-DPI App</string>
+          </resources>
+          EOF
+          
+          # Buat file themes.xml minimal (untuk Material 3)
+          mkdir -p app/src/main/res/values-night
+          cat > app/src/main/res/values/themes.xml <<EOF
+          <resources xmlns:tools="http://schemas.android.com/tools">
+              <style name="Base.Theme.CcDpi" parent="Theme.Material3.DayNight.NoActionBar">
+                  <!-- Customize your theme here -->
+              </style>
+              <style name="Theme.CcDpi" parent="Base.Theme.CcDpi" />
+          </resources>
+          EOF
+          
+          # Salin themes.xml ke values-night (untuk mode malam)
+          cp app/src/main/res/values/themes.xml app/src/main/res/values-night/
 
       - name: Setup Gradle Wrapper
         run: |
@@ -150,7 +211,7 @@ jobs:
           
           # Generate new gradle wrapper
           echo "Generating new Gradle wrapper..."
-          gradle wrapper --gradle-version 8.0 --distribution-type bin
+          gradle wrapper --gradle-version 8.4 --distribution-type bin  # Update Gradle version to 8.4 (compatible with AGP 8.2.0)
           
           # Set execute permissions
           chmod +x gradlew
@@ -161,10 +222,7 @@ jobs:
 
       - name: Build Debug APK
         run: |
-          # Sync project first
-          ./gradlew :app:preBuild --stacktrace --no-daemon
-          
-          # Then build APK
+          # Sync dan build APK
           ./gradlew :app:assembleDebug --stacktrace --no-daemon
 
       - name: Verify APK exists
