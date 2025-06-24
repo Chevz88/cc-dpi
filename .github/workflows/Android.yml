@@ -41,25 +41,36 @@ jobs:
 
       - name: Setup Gradle Wrapper
         run: |
-          # Generate gradle wrapper if not exists
+          # Hapus wrapper yang ada jika tidak lengkap
+          if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+            echo "Re-generating Gradle wrapper (missing jar file)..."
+            rm -f gradlew gradlew.bat
+            rm -rf gradle
+          fi
+          
+          # Generate gradle wrapper jika belum ada
           if [ ! -f "gradlew" ]; then
-            echo "Generating Gradle wrapper..."
+            echo "Generating new Gradle wrapper..."
             gradle wrapper --gradle-version 8.0 --distribution-type bin
           else
-            echo "Gradle wrapper already exists"
+            echo "Gradle wrapper script exists"
           fi
           
-          # Set execute permissions for gradlew
+          # Pastikan folder wrapper ada
+          if [ ! -d "gradle/wrapper" ]; then
+            echo "Creating missing wrapper directory..."
+            mkdir -p gradle/wrapper
+          fi
+          
+          # Download gradle-wrapper.jar jika hilang
+          if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+            echo "Downloading missing gradle-wrapper.jar..."
+            curl -L https://repo.maven.apache.org/maven2/org/gradle/wrapper/gradle-wrapper/8.0/gradle-wrapper-8.0.jar -o gradle/wrapper/gradle-wrapper.jar
+          fi
+          
+          # Set execute permissions
           chmod +x gradlew
           echo "Set execute permission for gradlew"
-          
-          # Set permissions for gradle directory only if exists
-          if [ -d "gradle" ]; then
-            chmod -R 755 gradle
-            echo "Set permissions for gradle directory"
-          else
-            echo "gradle directory not found, skipping permission change"
-          fi
           
           # Verify wrapper
           ./gradlew --version
