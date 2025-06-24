@@ -1,6 +1,6 @@
 plugins {
     id 'com.android.application'
-    id 'org.jetbrains.kotlin.android' // Gunakan plugin Kotlin Android dengan versi yang didefinisikan di root
+    id 'org.jetbrains.kotlin.android' // Gunakan plugin resmi
     id 'kotlin-kapt'
 }
 
@@ -28,41 +28,48 @@ android {
     }
 
     composeOptions {
-        // Setel versi compiler Compose yang kompatibel dengan Kotlin 1.8.22
-        kotlinCompilerExtensionVersion '1.4.8'
+        // Update ke versi terbaru yang kompatibel
+        kotlinCompilerExtensionVersion '1.5.4' 
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
+        sourceCompatibility JavaVersion.VERSION_17 // Update ke Java 17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = '11'
+        jvmTarget = '17' // Update ke Java 17
     }
 }
 
 dependencies {
-    implementation "androidx.core:core-ktx:1.10.1"
-    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.6.1"
-    implementation "androidx.activity:activity-compose:1.7.2"
-    implementation platform('androidx.compose:compose-bom:2023.08.00') // Gunakan BOM untuk mengelola versi Compose
+    // Core
+    implementation "androidx.core:core-ktx:1.12.0"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.6.2"
+    
+    // Compose
+    implementation "androidx.activity:activity-compose:1.8.0"
+    implementation platform("androidx.compose:compose-bom:2023.10.01") // Gunakan BOM
     implementation "androidx.compose.ui:ui"
-    implementation "androidx.compose.ui:ui-graphics"
+    implementation "androidx.compose.ui:ui-tooling-preview" // Tambahkan tooling
     implementation "androidx.compose.material3:material3"
-    implementation "androidx.compose.ui:ui-tooling-preview"
-    implementation "androidx.navigation:navigation-compose:2.6.0"
-
+    implementation "androidx.navigation:navigation-compose:2.7.4"
+    implementation "androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2" // ViewModel support
+    
     // Retrofit & Gson
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0' // Untuk debugging
 
     // Room
-    def room_version = "2.5.2"
+    def room_version = "2.6.0" // Update ke versi terbaru
     implementation "androidx.room:room-runtime:$room_version"
-    kapt "androidx.room:room-compiler:$room_version"
     implementation "androidx.room:room-ktx:$room_version"
+    kapt "androidx.room:room-compiler:$room_version"
 
     // Coroutines
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+
+    // Debugging
+    debugImplementation "androidx.compose.ui:ui-tooling"
 }
