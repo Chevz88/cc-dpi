@@ -39,6 +39,28 @@ jobs:
           api-level: 34
           build-tools-version: 34.0.0
 
+      - name: Setup Gradle repositories
+        run: |
+          # Buat atau overwrite settings.gradle untuk memastikan repositori plugin dan dependency benar
+          cat > settings.gradle <<EOF
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "cc-dpi"
+          include ':app'
+          EOF
+
       - name: Setup Gradle Wrapper
         run: |
           # Hapus wrapper yang ada jika tidak lengkap
