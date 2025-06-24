@@ -45,10 +45,39 @@ jobs:
         run: |
           mkdir -p app/src/main/java/com/pekerja/app
           mkdir -p app/src/main/res
+          
+          if [ ! -f "app/src/main/AndroidManifest.xml" ]; then
+            cat << 'EOF' > app/src/main/AndroidManifest.xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.pekerja.app">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="true"
+        android:label="CC-DPI App"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+        
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+EOF
+          fi
 
       - name: Setup Gradle Configuration
         run: |
-          cat > settings.gradle <<'EOF'
+          # Settings.gradle
+          cat << 'EOD' > settings.gradle
 pluginManagement {
     repositories {
         google()
@@ -64,10 +93,11 @@ dependencyResolutionManagement {
 }
 rootProject.name = "cc-dpi"
 include ':app'
-EOF
+EOD
           
+          # app/build.gradle
           mkdir -p app
-          cat > app/build.gradle <<'EOF'
+          cat << 'EOD' > app/build.gradle
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
@@ -111,9 +141,10 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
 }
-EOF
+EOD
           
-          cat > build.gradle <<'EOF'
+          # build.gradle level project
+          cat << 'EOD' > build.gradle
 buildscript {
     repositories {
         google()
@@ -128,22 +159,24 @@ buildscript {
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
-EOF
+EOD
           
-          cat > gradle.properties <<'EOF'
+          # gradle.properties
+          cat << 'EOD' > gradle.properties
 org.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8
 android.useAndroidX=true
 android.enableJetifier=true
 android.suppressUnsupportedCompileSdk=34
-EOF
+EOD
           
+          # Debug manifest
           mkdir -p app/src/debug
-          cat > app/src/debug/AndroidManifest.xml <<'EOF'
+          cat << 'EOD' > app/src/debug/AndroidManifest.xml
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application android:debuggable="true" />
 </manifest>
-EOF
+EOD
 
       - name: Setup Gradle Wrapper
         run: |
