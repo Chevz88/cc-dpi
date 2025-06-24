@@ -9,10 +9,10 @@ plugins {
     id 'com.google.firebase.crashlytics' version '2.9.9' apply false
 }
 
-// Konfigurasi untuk semua modul
+// Konfigurasi untuk semua modul Android
 subprojects {
     afterEvaluate { project ->
-        if (project.hasProperty("android")) {
+        if (project.plugins.hasPlugin("com.android.application") || project.plugins.hasPlugin("com.android.library")) {
             android {
                 compileSdk = 34
                 defaultConfig {
@@ -37,9 +37,8 @@ subprojects {
     }
 }
 
-// Konfigurasi ekstensi untuk dependency versions
+// Konfigurasi global ekstensi versi
 ext {
-    // Versi library umum
     composeBom = "2023.10.01"
     roomVersion = "2.6.0"
     retrofitVersion = "2.9.0"
@@ -50,7 +49,7 @@ ext {
     lifecycleVersion = "2.6.2"
 }
 
-// Clean task untuk menghapus build directory
+// Task clean global
 tasks.register('clean', Delete) {
     delete rootProject.layout.buildDirectory
 }
