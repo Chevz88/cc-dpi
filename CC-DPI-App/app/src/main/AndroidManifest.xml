@@ -7,7 +7,6 @@
     <application
         android:allowBackup="true"
         android:label="CC-DPI App"
-        android:icon="@android:drawable/ic_menu_info_details"
         android:supportsRtl="true"
         android:theme="@style/Theme.Material3.DayNight.NoActionBar">
         
